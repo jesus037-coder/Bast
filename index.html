@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>html{-webkit-text-size-adjust:100%}body{margin:0}</style>
 <title>Plano de Acionamento BAST</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -89,9 +95,48 @@ td.wide{min-width:180px;max-width:300px}
 .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:1px 8px;border:1px solid var(--border);border-radius:999px;white-space:nowrap}
 .pill i{width:8px;height:8px;border-radius:50%;background:var(--warn)}
 .foot{font-size:12px;color:var(--muted)}
-@media (max-width:520px){h1{font-size:21px}.kpi .v{font-size:26px}}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.sortrow{display:none}
+@media (max-width:640px){
+  body{padding-block:14px 40px}
+  .wrap{gap:12px}
+  h1{font-size:21px}
+  .actions{width:100%}
+  .actions .btn{flex:1 1 auto;justify-content:center;min-height:40px}
+  .toolbar{gap:8px 14px}
+  .chip{min-height:40px;padding:8px 14px}
+  select,input[type=search]{min-height:40px;font-size:15px}
+  .kpis{grid-template-columns:1fr 1fr}
+  .kpi{padding:12px}
+  .kpi .v{font-size:25px}
+  .kpi .v small{font-size:12px}
+  .kpi .s{font-size:11px}
+  .grid{gap:12px}
+  .panel{padding:12px}
+  .ax{font-size:12px}
+  .tcontrols{width:100%}
+  .tcontrols input[type=search]{flex:1 1 100%}
+  .tcontrols label{min-height:36px}
+  .sortrow{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--fg2)}
+  .sortrow select{flex:1;min-width:0}
+  .tablewrap{max-height:none;overflow:visible;border:0;background:none;margin-top:8px}
+  table{display:block;min-width:0;width:100%}
+  thead{display:none}
+  tbody{display:block}
+  tr{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px}
+  td{display:block;border:0;padding:0;min-width:0}
+  td[data-l]::before{content:attr(data-l);display:block;font-size:11px;color:var(--muted)}
+  td.name{grid-column:1/-1;font-weight:650;font-size:15px}
+  td.name::before{display:none!important}
+  td.wide{grid-column:1/-1;max-width:none;min-width:0;order:10}
+  td.flag{grid-column:1/-1;order:5}
+  td[colspan]{grid-column:1/-1}
+  .pill{white-space:normal}
+}
 </style>
 
+</head>
+<body>
 <div class="wrap">
   <header>
     <div>
@@ -160,6 +205,7 @@ td.wide{min-width:180px;max-width:300px}
         <input type="search" id="q" placeholder="Buscar nome, esquadrão, quem acionou" aria-label="Buscar na tabela" size="30">
       </div>
     </div>
+    <div class="sortrow"><label for="sortSel">Ordenar por</label><select id="sortSel"></select></div>
     <div class="tablewrap">
       <table>
         <thead><tr id="thead"></tr></thead>
@@ -508,6 +554,16 @@ function drawCharts(){
   chartFal();
   chartEsq();
   chartTop(rows);
+  document.querySelectorAll('svg rect[fill="transparent"]').forEach(touchify);
+}
+/* toque: o tooltip aparece ao tocar e fica até tocar em outro lugar; a rolagem vertical continua livre */
+function touchify(el){
+  el.style.touchAction='pan-y';
+  el.addEventListener('pointerleave',ev=>{if(ev.pointerType==='touch')ev.stopImmediatePropagation();},true);
+  el.addEventListener('pointerdown',ev=>{
+    if(ev.pointerType!=='touch')return;
+    el.dispatchEvent(new PointerEvent('pointermove',{clientX:ev.clientX,clientY:ev.clientY,pointerType:'touch',bubbles:true}));
+  });
 }
 
 function chartCum(host,rows){
@@ -561,7 +617,7 @@ function chartScatter(host,rows){
   const fals=['A','B','C','Comando'].filter(f=>pts.some(r=>r.fal===f));
   legend($('scLeg'),fals.map(f=>({color:FAL_COLOR[f],text:(f==='Comando'?'Comando':'Fallert '+f)+' · '+pts.filter(r=>r.fal===f).length})));
   if(!pts.length)return empty(host);
-  const w=Math.max(host.clientWidth,280),h=Math.round(Math.min(Math.max(w*.78,270),380)),m={l:38,r:12,t:10,b:26};
+  const w=Math.max(host.clientWidth,280),h=w<520?Math.round(Math.min(w*1.1,460)):Math.round(Math.min(Math.max(w*.78,270),380)),m={l:38,r:12,t:10,b:26};
   const lo=Math.min(...pts.map(r=>Math.min(r.cheg,r.acio))),hi=Math.max(...pts.map(r=>Math.max(r.cheg,r.acio)));
   const d0=Math.floor(lo/30)*30,d1=Math.max(Math.ceil(hi/30)*30,d0+30);
   const sx=t=>m.l+(t-d0)/(d1-d0)*(w-m.l-m.r),sy=t=>h-m.b-(t-d0)/(d1-d0)*(h-m.t-m.b);
@@ -582,7 +638,7 @@ function chartScatter(host,rows){
   const hit=S('rect',{x:m.l,y:m.t,width:w-m.l-m.r,height:h-m.t-m.b,fill:'transparent'},svg);
   hit.addEventListener('pointermove',ev=>{
     const rc=svg.getBoundingClientRect(),k=w/rc.width,px=(ev.clientX-rc.left)*k,py=(ev.clientY-rc.top)*k;
-    let best=null,bd=18;
+    let best=null,bd=ev.pointerType==='touch'?28:18;
     circles.forEach(o=>{const dx=sx(o.r.acio)-px,dy=sy(o.r.cheg)-py,d=Math.hypot(dx,dy);if(d<bd){bd=d;best=o;}});
     if(!best){ring.setAttribute('visibility','hidden');hideTip();return;}
     const r=best.r;
@@ -668,7 +724,9 @@ const COLS=[
   {k:'acio',t:'Acionado',n:1},{k:'cheg',t:'Chegou',n:1},{k:'resp',t:'Resposta (min)',n:1},
   {k:'por',t:'Acionado por'},{k:'acionou',t:'Acionou'}
 ];
+const SORTS=[['cheg',1,'Chegada, mais cedo'],['cheg',-1,'Chegada, mais tarde'],['resp',-1,'Resposta, maior primeiro'],['resp',1,'Resposta, menor primeiro'],['acio',1,'Acionado, mais cedo'],['nome',1,'Nome, A–Z'],['esq',1,'Esquadrão, A–Z'],['fal',1,'Fallert']];
 function buildHead(){
+  $('sortSel').innerHTML=SORTS.map((s,i)=>`<option value="${i}">${s[2]}</option>`).join('');
   $('thead').innerHTML=COLS.map(c=>`<th scope="col" aria-sort="none"><button type="button" data-k="${c.k}">${c.t}<span class="arr"></span></button></th>`).join('');
   $('thead').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
     const k=b.dataset.k;
@@ -688,6 +746,7 @@ function renderTable(){
     return (typeof x==='number'?x-y:String(x).localeCompare(String(y),'pt-BR',{numeric:true}))*dir;
   });
   $('rowCount').textContent='· '+rows.length+(rows.length===1?' linha':' linhas');
+  $('sortSel').selectedIndex=SORTS.findIndex(s=>s[0]===key&&s[1]===dir);
   document.querySelectorAll('#thead th').forEach((th,i)=>{
     const on=COLS[i].k===key;
     th.setAttribute('aria-sort',on?(dir>0?'ascending':'descending'):'none');
@@ -695,9 +754,9 @@ function renderTable(){
   });
   $('tbody').innerHTML=rows.map(r=>{
     const resp=r.status==='ok'?r.resp:(r.status==='antes'?'<span class="pill"><i></i>Chegou antes do acionamento</span>':'<span class="pill"><i></i>Horário inválido</span>');
-    return `<tr><td>${esc(r.nome)}</td><td>${esc(r.posto)}</td><td>${esc(r.esq)}</td><td>${esc(r.fal)}</td>`+
-      `<td class="n">${hm(r.acio)}</td><td class="n">${hm(r.cheg)}</td><td class="n">${resp}</td>`+
-      `<td class="wide">${esc(r.por)}</td><td class="wide">${esc(r.acionou)}</td></tr>`;
+    return `<tr><td class="name" data-l="Nome">${esc(r.nome)}</td><td data-l="Posto">${esc(r.posto)}</td><td data-l="Esquadrão">${esc(r.esq)}</td><td data-l="Fallert">${esc(r.fal)}</td>`+
+      `<td class="n" data-l="Acionado">${hm(r.acio)}</td><td class="n" data-l="Chegou">${hm(r.cheg)}</td><td class="n${r.status==='ok'?'':' flag'}" data-l="Resposta (min)">${resp}</td>`+
+      `<td class="wide" data-l="Acionado por">${esc(r.por)}</td><td class="wide" data-l="Acionou">${esc(r.acionou)}</td></tr>`;
   }).join('')||'<tr><td colspan="9"><span class="empty">Nenhuma linha para este filtro.</span></td></tr>';
 }
 
@@ -705,6 +764,9 @@ function renderTable(){
 $('esq').addEventListener('change',e=>{state.esq=e.target.value;render();});
 $('q').addEventListener('input',e=>{state.q=e.target.value;renderTable();});
 $('onlyIssues').addEventListener('change',e=>{state.onlyIssues=e.target.checked;renderTable();});
+$('sortSel').addEventListener('change',e=>{const s=SORTS[+e.target.value];state.sort={key:s[0],dir:s[1]};renderTable();});
+document.addEventListener('pointerdown',ev=>{if(!ev.target.closest('svg'))hideTip();});
+window.addEventListener('scroll',hideTip,{passive:true});
 $('file').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;
   const rd=new FileReader();
@@ -719,3 +781,6 @@ new ResizeObserver(()=>{cancelAnimationFrame(rz);rz=requestAnimationFrame(()=>{i
 buildHead();
 load(ORIGINAL,'');
 </script>
+
+</body>
+</html>
